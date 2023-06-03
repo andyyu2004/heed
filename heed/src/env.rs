@@ -576,7 +576,7 @@ impl Env {
     /// these keys can only be read and not written.
     pub fn create_database<KC, DC>(
         &self,
-        wtxn: &mut RwTxn,
+        wtxn: &RwTxn,
         name: Option<&str>,
     ) -> Result<Database<KC, DC, DefaultComparator>>
     where
