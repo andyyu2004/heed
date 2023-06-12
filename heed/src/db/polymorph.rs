@@ -1811,6 +1811,13 @@ impl PolyDatabase {
         unsafe { mdb_result(ffi::mdb_drop(txn.txn.txn, self.dbi, 0)).map_err(Into::into) }
     }
 
+    /// Drops this database from its environment.
+    pub fn drop(self, txn: &RwTxn) -> Result<()> {
+        assert_eq_env_db_txn!(self, txn);
+
+        unsafe { mdb_result(ffi::mdb_drop(txn.txn.txn, self.dbi, 1)).map_err(Into::into) }
+    }
+
     /// Read this polymorphic database like a typed one, specifying the codecs.
     ///
     /// # Safety

@@ -2153,6 +2153,10 @@ impl<KC, DC, C> Database<KC, DC, C> {
         unsafe { mdb_result(ffi::mdb_drop(txn.txn.txn, self.dbi, 0)).map_err(Into::into) }
     }
 
+    pub fn drop(&self, txn: &RwTxn) -> Result<()> {
+        self.dyndb.drop(txn)
+    }
+
     /// Change the codec types of this uniform database, specifying the codecs.
     ///
     /// # Safety
