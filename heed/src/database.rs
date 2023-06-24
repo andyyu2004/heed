@@ -1714,6 +1714,7 @@ impl<KC, DC, C> Database<KC, DC, C> {
     /// db.put(&mut wtxn, &27, "i-am-twenty-seven")?;
     /// db.put(&mut wtxn, &13, "i-am-thirteen")?;
     /// db.put(&mut wtxn, &521, "i-am-five-hundred-and-twenty-one")?;
+    /// assert!(db.put(&mut wtxn, &42, "cannot insert duplicates").is_err());
     ///
     /// let ret = db.get(&mut wtxn, &27)?;
     /// assert_eq!(ret, Some("i-am-twenty-seven"));
@@ -1722,6 +1723,27 @@ impl<KC, DC, C> Database<KC, DC, C> {
     /// # Ok(()) }
     /// ```
     pub fn put<'a>(&self, txn: &RwTxn, key: &'a KC::EItem, data: &'a DC::EItem) -> Result<()>
+    where
+        KC: BytesEncode<'a>,
+        DC: BytesEncode<'a>,
+    {
+        assert_eq_env_db_txn!(self, txn);
+
+        let key_bytes: Cow<[u8]> = KC::bytes_encode(key).map_err(Error::Encoding)?;
+        let data_bytes: Cow<[u8]> = DC::bytes_encode(data).map_err(Error::Encoding)?;
+
+        let mut key_val = unsafe { crate::into_val(&key_bytes) };
+        let mut data_val = unsafe { crate::into_val(&data_bytes) };
+        let flags = ffi::MDB_NOOVERWRITE;
+
+        unsafe {
+            mdb_result(ffi::mdb_put(txn.txn.txn, self.dbi, &mut key_val, &mut data_val, flags))?
+        }
+
+        Ok(())
+    }
+
+    pub fn update<'a>(&self, txn: &RwTxn, key: &'a KC::EItem, data: &'a DC::EItem) -> Result<()>
     where
         KC: BytesEncode<'a>,
         DC: BytesEncode<'a>,
@@ -2153,8 +2175,11 @@ impl<KC, DC, C> Database<KC, DC, C> {
         unsafe { mdb_result(ffi::mdb_drop(txn.txn.txn, self.dbi, 0)).map_err(Into::into) }
     }
 
-    pub fn drop(&self, txn: &RwTxn) -> Result<()> {
-        self.dyndb.drop(txn)
+    /// Drops this database from its environment.
+    pub fn drop(self, txn: &RwTxn) -> Result<()> {
+        assert_eq_env_db_txn!(self, txn);
+
+        unsafe { mdb_result(ffi::mdb_drop(txn.txn.txn, self.dbi, 1)).map_err(Into::into) }
     }
 
     /// Change the codec types of this uniform database, specifying the codecs.

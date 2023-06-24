@@ -1500,6 +1500,32 @@ impl PolyDatabase {
 
         let mut key_val = unsafe { crate::into_val(&key_bytes) };
         let mut data_val = unsafe { crate::into_val(&data_bytes) };
+        let flags = ffi::MDB_NOOVERWRITE;
+
+        unsafe {
+            mdb_result(ffi::mdb_put(txn.txn.txn, self.dbi, &mut key_val, &mut data_val, flags))?
+        }
+
+        Ok(())
+    }
+
+    pub fn update<'a, KC, DC>(
+        &self,
+        txn: &RwTxn,
+        key: &'a KC::EItem,
+        data: &'a DC::EItem,
+    ) -> Result<()>
+    where
+        KC: BytesEncode<'a>,
+        DC: BytesEncode<'a>,
+    {
+        assert_eq_env_db_txn!(self, txn);
+
+        let key_bytes: Cow<[u8]> = KC::bytes_encode(key).map_err(Error::Encoding)?;
+        let data_bytes: Cow<[u8]> = DC::bytes_encode(data).map_err(Error::Encoding)?;
+
+        let mut key_val = unsafe { crate::into_val(&key_bytes) };
+        let mut data_val = unsafe { crate::into_val(&data_bytes) };
         let flags = 0;
 
         unsafe {
